@@ -1,0 +1,117 @@
+<?php
+
+namespace Katana\Tests;
+
+use Katana\Contracts\VersionResolverInterface;
+use Katana\Facades\Katana;
+use Katana\KatanaManager;
+use Katana\KatanaServiceProvider;
+use Katana\Store\ArrayStore;
+use Katana\Store\StoreInterface;
+use Orchestra\Testbench\TestCase;
+
+/**
+ * Feature: KatanaServiceProvider registers bindings, config, and commands
+ *
+ * Given a Laravel application with KatanaServiceProvider loaded,
+ * When resolving services from the container,
+ * Then the correct singletons, config, facade, and commands should be available.
+ */
+class KatanaServiceProviderTest extends TestCase
+{
+    protected function getPackageProviders($app): array
+    {
+        return [KatanaServiceProvider::class];
+    }
+
+    protected function defineEnvironment($app): void
+    {
+        $app->singleton(StoreInterface::class, fn () => new ArrayStore);
+
+        $app['config']->set('katana.version.driver', 'csv');
+        $app['config']->set('katana.version.csv_path', '');
+        $app['config']->set('katana.version.cache_ttl', 0);
+    }
+
+    public function test_store_interface_is_bound_as_singleton(): void
+    {
+        // Given: the service provider is loaded
+        assert($this->app !== null);
+
+        // When: resolving StoreInterface twice
+        $first = $this->app->make(StoreInterface::class);
+        $second = $this->app->make(StoreInterface::class);
+
+        // Then: both references should be the same instance
+        $this->assertSame($first, $second, 'StoreInterface should be a singleton');
+    }
+
+    public function test_katana_manager_is_bound_as_singleton(): void
+    {
+        assert($this->app !== null);
+
+        // When: resolving KatanaManager twice
+        $first = $this->app->make(KatanaManager::class);
+        $second = $this->app->make(KatanaManager::class);
+
+        // Then: same instance
+        $this->assertSame($first, $second, 'KatanaManager should be a singleton');
+    }
+
+    public function test_facade_resolves_to_katana_manager(): void
+    {
+        assert($this->app !== null);
+
+        // When: calling a method via Facade
+        $tables = Katana::registeredTables();
+
+        // Then: returns empty array (no tables registered)
+        $this->assertSame([], $tables, 'Facade should resolve to KatanaManager');
+    }
+
+    public function test_config_is_merged(): void
+    {
+        assert($this->app !== null);
+
+        // When: reading katana config
+        $prefix = $this->app['config']->get('katana.prefix');
+
+        // Then: default prefix
+        $this->assertSame('katana', $prefix, 'Config should be merged with default prefix');
+    }
+
+    public function test_config_publish_path_is_registered(): void
+    {
+        assert($this->app !== null);
+
+        // When: checking registered publish groups
+        $publishes = KatanaServiceProvider::$publishes[KatanaServiceProvider::class] ?? [];
+
+        // Then: katana config should be in publish list
+        $this->assertNotEmpty($publishes, 'ServiceProvider should register config for publishing');
+
+        $configTarget = config_path('katana.php');
+        $this->assertContains($configTarget, $publishes, 'Published config should target config_path("katana.php")');
+    }
+
+    public function test_rebuild_command_is_registered(): void
+    {
+        // When: running katana:rebuild with no tables
+        $result = $this->artisan('katana:rebuild');
+        assert($result instanceof \Illuminate\Testing\PendingCommand);
+
+        // Then: command should exist and succeed
+        $result->assertSuccessful();
+    }
+
+    public function test_version_resolver_is_bound(): void
+    {
+        assert($this->app !== null);
+
+        // When: resolving VersionResolverInterface
+        $resolver = $this->app->make(VersionResolverInterface::class);
+
+        // Then: non-null, correct type
+        $this->assertInstanceOf(VersionResolverInterface::class, $resolver, 'VersionResolverInterface should be bound');
+    }
+}

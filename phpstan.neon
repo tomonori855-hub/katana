@@ -1,0 +1,8 @@
+parameters:
+    level: 8
+    paths:
+        - src
+        - tests
+    phpVersion: 80400
+    parallel:
+        maximumNumberOfProcesses: 1

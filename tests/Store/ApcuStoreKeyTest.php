@@ -1,0 +1,82 @@
+<?php
+
+namespace Katana\Tests\Store;
+
+use Katana\Store\ApcuStore;
+use PHPUnit\Framework\TestCase;
+
+/**
+ * Key generation logic only — no APCu calls, no Docker needed.
+ */
+class ApcuStoreKeyTest extends TestCase
+{
+    private ApcuStore $store;
+
+    protected function setUp(): void
+    {
+        $this->store = new ApcuStore(prefix: 'katana');
+    }
+
+    public function test_ids_key(): void
+    {
+        $this->assertSame(
+            'katana:users:v1:ids',
+            $this->store->idsKey('users', 'v1'),
+            'ids key should include prefix, table, and version',
+        );
+    }
+
+    public function test_record_key_with_integer_id(): void
+    {
+        $this->assertSame(
+            'katana:users:v1:record:1',
+            $this->store->recordKey('users', 'v1', 1),
+            'record key should include prefix, table, version, and integer id',
+        );
+    }
+
+    public function test_record_key_with_string_id(): void
+    {
+        $this->assertSame(
+            'katana:users:v1:record:abc',
+            $this->store->recordKey('users', 'v1', 'abc'),
+            'record key should include prefix, table, version, and string id',
+        );
+    }
+
+    public function test_meta_key(): void
+    {
+        $this->assertSame(
+            'katana:users:v1:meta',
+            $this->store->metaKey('users', 'v1'),
+            'meta key should include prefix, table, and version',
+        );
+    }
+
+    public function test_index_key_single_column(): void
+    {
+        $this->assertSame(
+            'katana:users:v1:idx:status',
+            $this->store->indexKey('users', 'v1', 'status'),
+            'index key for single column should include prefix, table, version, and column',
+        );
+    }
+
+    public function test_index_key_with_chunk(): void
+    {
+        $this->assertSame(
+            'katana:users:v1:idx:status:0',
+            $this->store->indexKey('users', 'v1', 'status', 0),
+            'index key with chunk should include chunk number suffix',
+        );
+    }
+
+    public function test_lock_key_has_no_version(): void
+    {
+        $this->assertSame(
+            'katana:users:lock',
+            $this->store->lockKey('users'),
+            'lock key should not include version',
+        );
+    }
+}

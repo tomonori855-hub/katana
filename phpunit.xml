@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit colors="true"
+         processIsolation="false"
+         stopOnError="false"
+         stopOnFailure="false"
+         cacheDirectory=".phpunit.cache"
+         backupStaticProperties="false">
+    <testsuites>
+        <testsuite name="Katana Test Suite">
+            <directory suffix="Test.php">./tests</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <ini name="date.timezone" value="UTC" />
+        <ini name="memory_limit" value="256M" />
+    </php>
+</phpunit>
