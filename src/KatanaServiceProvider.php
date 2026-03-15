@@ -2,9 +2,12 @@
 
 namespace Katana;
 
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Katana\Console\RebuildCommand;
 use Katana\Contracts\VersionResolverInterface;
+use Katana\Http\Controllers\WarmController;
+use Katana\Http\Middleware\KatanaAuthMiddleware;
 use Katana\Jobs\RebuildCacheJob;
 use Katana\Loader\CsvVersionResolver;
 use Katana\Store\ApcuStore;
@@ -83,6 +86,25 @@ class KatanaServiceProvider extends ServiceProvider
 
             $this->commands([RebuildCommand::class]);
         }
+
+        $this->registerWarmRoute();
+    }
+
+    private function registerWarmRoute(): void
+    {
+        /** @var \Illuminate\Config\Repository $config */
+        $config = $this->app->make('config');
+
+        if (! $config->get('katana.warm.enabled', false)) {
+            return;
+        }
+
+        /** @var string $path */
+        $path = $config->get('katana.warm.path', 'katana/warm');
+
+        Route::post($path, WarmController::class)
+            ->middleware(KatanaAuthMiddleware::class)
+            ->name('katana.warm');
     }
 
     /**

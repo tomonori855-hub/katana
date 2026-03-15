@@ -66,6 +66,19 @@ return [
     ],
 
     /*
+     * Cache warm endpoint.
+     *
+     * enabled: register the POST /katana/warm route
+     * token:   Bearer token for authentication (required)
+     * path:    URL path (default: katana/warm)
+     */
+    'warm' => [
+        'enabled' => false,
+        'token' => env('KATANA_WARM_TOKEN', ''),
+        'path' => 'katana/warm',
+    ],
+
+    /*
      * Per-table overrides.
      *
      * 'tables' => [
