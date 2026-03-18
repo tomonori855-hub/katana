@@ -744,10 +744,11 @@ and existing caches get their TTL reset via `apcu_store`. Full reload is not nee
 
 ```php
 'ttl' => [
-    'ids'    => 3600,    // 1 hour (shortest. rebuild trigger)
-    'meta'   => 4800,    // 1 hour 20 minutes
-    'record' => 4800,    // 1 hour 20 minutes
-    'index'  => 4800,    // 1 hour 20 minutes
+    'ids'       => 3600,    // 1 hour (shortest. rebuild trigger)
+    'meta'      => 4800,    // 1 hour 20 minutes
+    'record'    => 4800,    // 1 hour 20 minutes
+    'index'     => 4800,    // 1 hour 20 minutes
+    'ids_jitter' => 600,    // random 0–600s added to ids TTL (thundering herd prevention)
 ],
 ```
 

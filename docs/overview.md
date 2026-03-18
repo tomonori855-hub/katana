@@ -27,7 +27,8 @@ src/
 │   ├── BuildsOrderAndPagination.php   orderBy / paginate methods
 │   └── ExecutesQueries.php            Execution methods like get / first / find
 ├── Contracts/
-│   └── ReferenceQueryBuilderInterface.php
+│   ├── ReferenceQueryBuilderInterface.php
+│   └── VersionResolverInterface.php   Common interface for version resolution
 ├── Console/
 │   └── RebuildCommand.php             artisan kura:rebuild
 ├── Index/
@@ -38,15 +39,17 @@ src/
 ├── Jobs/
 │   └── RebuildCacheJob.php            Async cache rebuild job
 ├── Loader/
-│   └── LoaderInterface.php            Abstract interface for data retrieval (implementation in separate package)
+│   ├── LoaderInterface.php            Abstract interface for data retrieval
+│   ├── CsvLoader.php                  CSV-based loader (data.csv with version column)
+│   ├── CsvVersionResolver.php         Resolves active version from versions.csv
+│   ├── EloquentLoader.php             Eloquent model-based loader
+│   └── QueryBuilderLoader.php         Query builder-based loader
 ├── Store/
 │   ├── StoreInterface.php             Abstract interface for APCu operations
 │   ├── ApcuStore.php                  Production APCu implementation
 │   └── ArrayStore.php                 In-memory implementation for tests
 ├── Version/
-│   ├── VersionResolverInterface.php   Common interface for version resolution
 │   ├── DatabaseVersionResolver.php    Resolves from DB reference_versions table
-│   ├── CsvVersionResolver.php         Resolves from CSV versions.csv
 │   └── CachedVersionResolver.php      Decorator (cached via APCu + PHP var)
 └── Support/
     ├── RecordCursor.php               Generator-based cursor (streaming, sorted, random)
@@ -83,9 +86,9 @@ TTL is configured in `config/kura.php`. `ids` has the shortest TTL (serving as t
 
 Versions are resolved via `VersionResolverInterface`.
 
-- `DatabaseVersionResolver` — DB `reference_versions` table (id, version, activated_at)
-- `CsvVersionResolver` — CSV versions.csv (id, version, activated_at)
-- `CachedVersionResolver` — Decorator. Cached via APCu + PHP var (default 5 minutes)
+- `DatabaseVersionResolver` (`src/Version/`) — DB `reference_versions` table (id, version, activated_at)
+- `CsvVersionResolver` (`src/Loader/`) — CSV versions.csv (id, version, activated_at)
+- `CachedVersionResolver` (`src/Version/`) — Decorator. Cached via APCu + PHP var (default 5 minutes)
 
 When the version changes, cache keys change accordingly, and old caches naturally expire via TTL.
 
