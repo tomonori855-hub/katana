@@ -2,10 +2,10 @@
 
 namespace Kura\Concerns;
 
-use Illuminate\Database\MultipleRecordsFoundException;
-use Illuminate\Database\RecordsNotFoundException;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
+use Kura\Exceptions\MultipleRecordsFoundException;
+use Kura\Exceptions\RecordsNotFoundException;
 
 /**
  * Query execution methods: cursor, get, find, aggregates, pagination, etc.

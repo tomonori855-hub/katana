@@ -42,6 +42,19 @@ class DatabaseVersionResolverTest extends TestCase
     // Tests
     // -------------------------------------------------------------------------
 
+    private function resolver(
+        string $table = 'reference_versions',
+        string $versionColumn = 'version',
+        string $startAtColumn = 'activated_at',
+    ): DatabaseVersionResolver {
+        return new DatabaseVersionResolver(
+            connection: DB::connection(),
+            table: $table,
+            versionColumn: $versionColumn,
+            startAtColumn: $startAtColumn,
+        );
+    }
+
     public function test_resolves_latest_active_version(): void
     {
         // Arrange
@@ -51,10 +64,8 @@ class DatabaseVersionResolverTest extends TestCase
             ['version' => 'v3.0.0', 'activated_at' => '2099-01-01 00:00:00'],
         ]);
 
-        $resolver = new DatabaseVersionResolver;
-
         // Act
-        $version = $resolver->resolve();
+        $version = $this->resolver()->resolve();
 
         // Assert — v3.0.0 is future, v2.0.0 is the latest active
         $this->assertSame('v2.0.0', $version, 'Should return latest version with activated_at <= now()');
@@ -63,10 +74,8 @@ class DatabaseVersionResolverTest extends TestCase
     public function test_returns_null_when_table_is_empty(): void
     {
         // Arrange — empty table
-        $resolver = new DatabaseVersionResolver;
-
         // Act
-        $version = $resolver->resolve();
+        $version = $this->resolver()->resolve();
 
         // Assert
         $this->assertNull($version, 'Should return null when no versions exist');
@@ -79,10 +88,8 @@ class DatabaseVersionResolverTest extends TestCase
             ['version' => 'v1.0.0', 'activated_at' => '2099-01-01 00:00:00'],
         ]);
 
-        $resolver = new DatabaseVersionResolver;
-
         // Act
-        $version = $resolver->resolve();
+        $version = $this->resolver()->resolve();
 
         // Assert
         $this->assertNull($version, 'Should return null when all versions are in the future');
@@ -95,10 +102,8 @@ class DatabaseVersionResolverTest extends TestCase
             ['version' => 'v1.0.0', 'activated_at' => '2020-01-01 00:00:00'],
         ]);
 
-        $resolver = new DatabaseVersionResolver;
-
         // Act
-        $version = $resolver->resolve();
+        $version = $this->resolver()->resolve();
 
         // Assert
         $this->assertSame('v1.0.0', $version, 'Should return the only active version');
@@ -106,20 +111,17 @@ class DatabaseVersionResolverTest extends TestCase
 
     public function test_uses_custom_column_names(): void
     {
-        // Arrange — custom table/column names via constructor
-        // Using the default table but verifying the resolver accepts custom names
+        // Arrange
         DB::table('reference_versions')->insert([
             ['version' => 'v5.0.0', 'activated_at' => '2024-01-01 00:00:00'],
         ]);
 
-        $resolver = new DatabaseVersionResolver(
+        // Act
+        $version = $this->resolver(
             table: 'reference_versions',
             versionColumn: 'version',
             startAtColumn: 'activated_at',
-        );
-
-        // Act
-        $version = $resolver->resolve();
+        )->resolve();
 
         // Assert
         $this->assertSame('v5.0.0', $version, 'Should work with explicitly specified column names');

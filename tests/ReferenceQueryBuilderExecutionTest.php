@@ -2,9 +2,9 @@
 
 namespace Kura\Tests;
 
-use Illuminate\Database\MultipleRecordsFoundException;
-use Illuminate\Database\RecordsNotFoundException;
 use Kura\CacheRepository;
+use Kura\Exceptions\MultipleRecordsFoundException;
+use Kura\Exceptions\RecordsNotFoundException;
 use Kura\ReferenceQueryBuilder;
 use Kura\Store\ArrayStore;
 use Kura\Tests\Support\InMemoryLoader;

@@ -68,14 +68,19 @@ return [
     /*
      * Cache warm endpoint.
      *
-     * enabled: register the POST /kura/warm route
-     * token:   Bearer token for authentication (required)
-     * path:    URL path (default: kura/warm)
+     * enabled:           register the POST /kura/warm route
+     * token:             Bearer token for authentication (required)
+     * path:              URL path (default: kura/warm)
+     * controller:        invokable controller for POST /kura/warm
+     *                    publish with: php artisan vendor:publish --tag=kura-controllers
+     * status_controller: invokable controller for GET /kura/warm/status/{batchId}
      */
     'warm' => [
         'enabled' => false,
         'token' => env('KURA_WARM_TOKEN', ''),
         'path' => 'kura/warm',
+        'controller' => \Kura\Http\Controllers\WarmController::class,
+        'status_controller' => \Kura\Http\Controllers\WarmStatusController::class,
     ],
 
     /*

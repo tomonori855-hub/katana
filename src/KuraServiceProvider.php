@@ -5,8 +5,12 @@ namespace Kura;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Kura\Console\RebuildCommand;
+use Kura\Console\TokenCommand;
 use Kura\Contracts\VersionResolverInterface;
+use Kura\Http\Batch\BatchFinderInterface;
+use Kura\Http\Batch\LaravelBatchFinder;
 use Kura\Http\Controllers\WarmController;
+use Kura\Http\Controllers\WarmStatusController;
 use Kura\Http\Middleware\KuraAuthMiddleware;
 use Kura\Jobs\RebuildCacheJob;
 use Kura\Loader\CsvVersionResolver;
@@ -20,6 +24,8 @@ class KuraServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/kura.php', 'kura');
+
+        $this->app->bind(BatchFinderInterface::class, LaravelBatchFinder::class);
 
         $this->app->singleton(StoreInterface::class, function ($app) {
             /** @var string $prefix */
@@ -39,6 +45,7 @@ class KuraServiceProvider extends ServiceProvider
 
             $inner = match ($driver) {
                 'database' => new DatabaseVersionResolver(
+                    connection: $app['db']->connection(),
                     table: $config->get('kura.version.table', 'reference_versions'),
                     versionColumn: $config->get('kura.version.columns.version', 'version'),
                     startAtColumn: $config->get('kura.version.columns.activated_at', 'activated_at'),
@@ -84,7 +91,12 @@ class KuraServiceProvider extends ServiceProvider
                 __DIR__.'/../config/kura.php' => config_path('kura.php'),
             ], 'kura-config');
 
-            $this->commands([RebuildCommand::class]);
+            $this->publishes([
+                __DIR__.'/../stubs/WarmController.php' => app_path('Http/Controllers/Kura/WarmController.php'),
+                __DIR__.'/../stubs/WarmStatusController.php' => app_path('Http/Controllers/Kura/WarmStatusController.php'),
+            ], 'kura-controllers');
+
+            $this->commands([RebuildCommand::class, TokenCommand::class]);
         }
 
         $this->registerWarmRoute();
@@ -102,9 +114,19 @@ class KuraServiceProvider extends ServiceProvider
         /** @var string $path */
         $path = $config->get('kura.warm.path', 'kura/warm');
 
-        Route::post($path, WarmController::class)
+        /** @var class-string $warmController */
+        $warmController = $config->get('kura.warm.controller', WarmController::class);
+
+        /** @var class-string $statusController */
+        $statusController = $config->get('kura.warm.status_controller', WarmStatusController::class);
+
+        Route::post($path, $warmController)
             ->middleware(KuraAuthMiddleware::class)
             ->name('kura.warm');
+
+        Route::get($path.'/status/{batchId}', $statusController)
+            ->middleware(KuraAuthMiddleware::class)
+            ->name('kura.warm.status');
     }
 
     /**

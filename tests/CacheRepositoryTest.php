@@ -605,4 +605,76 @@ class CacheRepositoryTest extends TestCase
             'reload() should delegate to rebuild() and populate the cache',
         );
     }
+
+    // -------------------------------------------------------------------------
+    // Empty dataset (zero records)
+    // -------------------------------------------------------------------------
+
+    public function test_rebuild_with_no_records_stores_empty_ids(): void
+    {
+        // Arrange — loader yields nothing (e.g. all rows are future-version)
+        $repo = $this->makeRepository([]);
+
+        // Act
+        $repo->rebuild();
+
+        // Assert — ids key exists and is empty array (not false)
+        $ids = $this->store->getIds('users', 'v1');
+        $this->assertSame(
+            [],
+            $ids,
+            'ids should be stored as empty array, not false, so it is not mistaken for a cache miss',
+        );
+    }
+
+    public function test_ids_distinguishes_empty_cache_from_missing_cache(): void
+    {
+        // Arrange — nothing in store yet
+        $repo = $this->makeRepository([]);
+
+        // Act — before rebuild, ids() returns false
+        $before = $repo->ids();
+
+        $repo->rebuild();
+
+        // After rebuild with zero records, ids() returns []
+        $after = $repo->ids();
+
+        // Assert
+        $this->assertFalse(
+            $before,
+            'Before rebuild, ids() should return false (cache absent)',
+        );
+        $this->assertSame(
+            [],
+            $after,
+            'After rebuild with zero records, ids() should return [] (cache present but empty)',
+        );
+        $this->assertNotSame(
+            $before,
+            $after,
+            'false !== [] — empty cache must be distinguishable from absent cache',
+        );
+    }
+
+    public function test_rebuild_with_no_records_does_not_trigger_further_rebuild(): void
+    {
+        // Arrange — empty dataset (e.g. table has only future-version rows)
+        $repo = $this->makeRepository([]);
+        $repo->rebuild();
+
+        // Act — ids() after rebuild
+        $ids = $repo->ids();
+
+        // Assert — ids is [] not false, so CacheProcessor would NOT dispatch a rebuild
+        $this->assertIsArray(
+            $ids,
+            'ids() must return array (not false) so callers do not treat empty table as cache miss',
+        );
+        $this->assertSame(
+            [],
+            $ids,
+            'Empty table should yield empty ids, not trigger a rebuild loop',
+        );
+    }
 }

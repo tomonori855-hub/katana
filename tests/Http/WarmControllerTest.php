@@ -3,6 +3,7 @@
 namespace Kura\Tests\Http;
 
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Schema;
 use Kura\Jobs\RebuildCacheJob;
 use Kura\KuraManager;
 use Kura\KuraServiceProvider;
@@ -174,8 +175,9 @@ class WarmControllerTest extends TestCase
 
     public function test_warm_dispatches_batch_job_per_table_when_strategy_is_queue(): void
     {
-        // Given: rebuild strategy = queue
+        // Given: rebuild strategy = queue, job_batches table exists
         Bus::fake();
+        Schema::shouldReceive('hasTable')->with('job_batches')->andReturn(true);
         assert($this->app !== null);
         $this->app['config']->set('kura.rebuild.strategy', 'queue');
 
@@ -197,10 +199,36 @@ class WarmControllerTest extends TestCase
         });
     }
 
+    public function test_warm_queue_strategy_applies_connection_and_queue_config_to_each_job(): void
+    {
+        // Given: queue config specifies connection and queue name, job_batches table exists
+        Bus::fake();
+        Schema::shouldReceive('hasTable')->with('job_batches')->andReturn(true);
+        assert($this->app !== null);
+        $this->app['config']->set('kura.rebuild.strategy', 'queue');
+        $this->app['config']->set('kura.rebuild.queue.connection', 'redis');
+        $this->app['config']->set('kura.rebuild.queue.queue', 'kura-jobs');
+
+        // When: POST /kura/warm
+        $this->postJson('/kura/warm', [], [
+            'Authorization' => 'Bearer test-secret-token',
+        ]);
+
+        // Then: each job carries the configured connection and queue
+        Bus::assertBatched(function (\Illuminate\Bus\PendingBatch $batch): bool {
+            $job = $batch->jobs[0];
+
+            return $job instanceof RebuildCacheJob
+                && $job->connection === 'redis'
+                && $job->queue === 'kura-jobs';
+        });
+    }
+
     public function test_warm_queue_strategy_includes_version_in_each_job(): void
     {
-        // Given: rebuild strategy = queue, version override requested
+        // Given: rebuild strategy = queue, version override requested, job_batches table exists
         Bus::fake();
+        Schema::shouldReceive('hasTable')->with('job_batches')->andReturn(true);
         assert($this->app !== null);
         $this->app['config']->set('kura.rebuild.strategy', 'queue');
 
@@ -220,8 +248,9 @@ class WarmControllerTest extends TestCase
 
     public function test_warm_queue_strategy_dispatches_one_job_per_registered_table(): void
     {
-        // Given: two tables registered, strategy = queue
+        // Given: two tables registered, strategy = queue, job_batches table exists
         Bus::fake();
+        Schema::shouldReceive('hasTable')->with('job_batches')->andReturn(true);
         assert($this->app !== null);
         $this->app['config']->set('kura.rebuild.strategy', 'queue');
 
@@ -243,6 +272,28 @@ class WarmControllerTest extends TestCase
         Bus::assertBatched(function (\Illuminate\Bus\PendingBatch $batch): bool {
             return count($batch->jobs) === 2;
         });
+    }
+
+    public function test_warm_returns_500_when_job_batches_table_is_missing(): void
+    {
+        // Given: strategy = queue but job_batches table does not exist
+        Bus::fake();
+        assert($this->app !== null);
+        $this->app['config']->set('kura.rebuild.strategy', 'queue');
+
+        // Simulate missing job_batches table via Schema mock
+        \Illuminate\Support\Facades\Schema::shouldReceive('hasTable')
+            ->with('job_batches')
+            ->andReturn(false);
+
+        // When: POST /kura/warm
+        $response = $this->postJson('/kura/warm', [], [
+            'Authorization' => 'Bearer test-secret-token',
+        ]);
+
+        // Then: 500 with helpful message
+        $response->assertStatus(500);
+        $response->assertJsonFragment(['message' => 'job_batches table is missing. Run: php artisan queue:batches-table && php artisan migrate']);
     }
 
     // =========================================================================

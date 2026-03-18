@@ -1,6 +1,6 @@
 <?php
 
-namespace Kura\Http\Controllers;
+namespace App\Http\Controllers\Kura;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,11 +18,11 @@ class WarmController
      * POST /kura/warm?tables=products,categories
      * POST /kura/warm?version=v2.0.0
      *
-     * When rebuild.strategy = 'queue': dispatches one RebuildCacheJob per table
-     * as a Bus batch and returns immediately (202) with batch_id for status tracking.
+     * Customize this controller freely — authentication, logging,
+     * additional validation, Slack notifications, etc.
      *
-     * When rebuild.strategy = 'sync' or 'callback': rebuilds sequentially
-     * in the same request and returns final status (200).
+     * Register your customized controller in config/kura.php:
+     *   'warm' => ['controller' => \App\Http\Controllers\Kura\WarmController::class]
      */
     public function __invoke(Request $request, KuraManager $manager): JsonResponse
     {
