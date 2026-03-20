@@ -362,7 +362,6 @@ See [`config/kura.php`](config/kura.php) for all available options. Per-table ov
 'tables' => [
     'stations' => [
         'ttl' => ['record' => 7200],
-        'chunk_size' => 10000,  // split large indexes into chunks
     ],
 ],
 ```

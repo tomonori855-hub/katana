@@ -362,7 +362,6 @@ Kura は Laravel QueryBuilder の約99メソッドを実装しています。完
 'tables' => [
     'stations' => [
         'ttl' => ['record' => 7200],
-        'chunk_size' => 10000,  // 大きなインデックスをチャンクに分割
     ],
 ],
 ```
