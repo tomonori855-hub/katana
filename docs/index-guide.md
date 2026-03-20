@@ -119,12 +119,12 @@ ID lists from each index are converted to hashmaps via `array_flip`, then inters
 
 ## Declaring Indexes
 
-Indexes are declared via `LoaderInterface::indexes()` — it's the Loader's responsibility:
+Indexes are declared via `LoaderInterface::indexes()` — it's the Loader's responsibility.
+
+### CSV
 
 ```php
-use Kura\Index\IndexDefinition;
-
-// In CsvLoader
+// Option A: array syntax
 $loader = new CsvLoader(
     tableDirectory: base_path('data/stations'),
     resolver: $resolver,
@@ -132,17 +132,52 @@ $loader = new CsvLoader(
         ['columns' => ['prefecture'], 'unique' => false],
         ['columns' => ['line_id'], 'unique' => false],
         ['columns' => ['prefecture', 'line_id'], 'unique' => false],  // composite
-        ['columns' => ['code'], 'unique' => true],                    // unique
+        ['columns' => ['code'], 'unique' => true],
     ],
 );
 
+// Option B: indexes.csv in the table directory (auto-discovered)
+// columns,unique
+// prefecture,false
+// line_id,false
+// prefecture|line_id,false
+// code,true
+```
+
+### Database (EloquentLoader / QueryBuilderLoader)
+
+Pass `indexes` directly to the constructor — same array syntax as CSV:
+
+```php
+use Kura\Index\IndexDefinition;
+
+$loader = new EloquentLoader(
+    query: Station::query(),
+    columns: ['id' => 'int', 'prefecture' => 'string', 'line_id' => 'int', 'code' => 'string'],
+    indexes: [
+        ['columns' => ['prefecture'], 'unique' => false],
+        ['columns' => ['line_id'], 'unique' => false],
+        ['columns' => ['prefecture', 'line_id'], 'unique' => false],  // composite
+        ['columns' => ['code'], 'unique' => true],
+    ],
+    version: $resolver,
+);
+
 // Or using IndexDefinition factory
-$indexes = [
-    IndexDefinition::nonUnique('prefecture'),
-    IndexDefinition::nonUnique('line_id'),
-    IndexDefinition::nonUnique('prefecture', 'line_id'),  // composite
-    IndexDefinition::unique('code'),
-];
+$loader = new EloquentLoader(
+    query: Station::query(),
+    columns: ['id' => 'int', 'prefecture' => 'string', 'line_id' => 'int', 'code' => 'string'],
+    indexes: [
+        IndexDefinition::nonUnique('prefecture'),
+        IndexDefinition::nonUnique('line_id'),
+        IndexDefinition::nonUnique('prefecture', 'line_id'),  // composite
+        IndexDefinition::unique('code'),
+    ],
+    version: $resolver,
+);
+```
+
+> **Note**: Kura's indexes are **independent of your database indexes**. A column does not need a DB index to be indexed in Kura's APCu cache. That said, columns that are worth indexing in Kura (high selectivity, frequently queried) are often worth indexing in the DB too — they are two separate optimizations.
 ```
 
 ### Unique vs Non-Unique

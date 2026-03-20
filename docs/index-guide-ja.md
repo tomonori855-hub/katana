@@ -119,12 +119,12 @@ where('prefecture', 'Tokyo')->where('line_id', 1)
 
 ## インデックスの宣言
 
-インデックスは `LoaderInterface::indexes()` で宣言します — Loader 側の責務です:
+インデックスは `LoaderInterface::indexes()` で宣言します — Loader 側の責務です。
+
+### CSV
 
 ```php
-use Kura\Index\IndexDefinition;
-
-// CsvLoader の場合
+// オプション A: 配列で指定
 $loader = new CsvLoader(
     tableDirectory: base_path('data/stations'),
     resolver: $resolver,
@@ -132,17 +132,60 @@ $loader = new CsvLoader(
         ['columns' => ['prefecture'], 'unique' => false],
         ['columns' => ['line_id'], 'unique' => false],
         ['columns' => ['prefecture', 'line_id'], 'unique' => false],  // composite
-        ['columns' => ['code'], 'unique' => true],                    // unique
+        ['columns' => ['code'], 'unique' => true],
     ],
 );
 
+// オプション B: テーブルディレクトリの indexes.csv（自動読み込み）
+// columns,unique
+// prefecture,false
+// line_id,false
+// prefecture|line_id,false
+// code,true
+```
+
+### データベース（EloquentLoader / QueryBuilderLoader）
+
+CSV と同じ配列形式でコンストラクタに渡します：
+
+```php
+use Kura\Index\IndexDefinition;
+
+$loader = new EloquentLoader(
+    query: Station::query(),
+    columns: ['id' => 'int', 'prefecture' => 'string', 'line_id' => 'int', 'code' => 'string'],
+    indexes: [
+        ['columns' => ['prefecture'], 'unique' => false],
+        ['columns' => ['line_id'], 'unique' => false],
+        ['columns' => ['prefecture', 'line_id'], 'unique' => false],  // composite
+        ['columns' => ['code'], 'unique' => true],
+    ],
+    version: $resolver,
+);
+
 // IndexDefinition ファクトリを使う場合
-$indexes = [
-    IndexDefinition::nonUnique('prefecture'),
-    IndexDefinition::nonUnique('line_id'),
-    IndexDefinition::nonUnique('prefecture', 'line_id'),  // composite
-    IndexDefinition::unique('code'),
-];
+$loader = new EloquentLoader(
+    query: Station::query(),
+    columns: ['id' => 'int', 'prefecture' => 'string', 'line_id' => 'int', 'code' => 'string'],
+    indexes: [
+        IndexDefinition::nonUnique('prefecture'),
+        IndexDefinition::nonUnique('line_id'),
+        IndexDefinition::nonUnique('prefecture', 'line_id'),  // composite
+        IndexDefinition::unique('code'),
+    ],
+    version: $resolver,
+);
+```
+
+> **注意**: Kura のインデックスは **DB のインデックスとは独立**しています。DB にインデックスがないカラムでも Kura の APCu キャッシュにインデックスを作れます。ただし、Kura でインデックスを付ける価値があるカラム（高選択性、頻繁にクエリされる）は DB 側でもインデックスを付ける価値があることが多く、両者は別々の最適化です。
+
+カラム型・インデックス情報を DB から確認する方法（Laravel 11+）：
+
+```php
+// tinker や migration で確認
+Schema::getColumns('stations');
+Schema::getIndexes('stations');
+```
 ```
 
 ### Unique vs Non-Unique
