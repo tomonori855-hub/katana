@@ -392,7 +392,11 @@ return [
         'strategy' => 'sync',
 
         // strategy = 'callback' のとき必須
-        // callable(\Kura\CacheRepository $repository): void
+        // 例: Horizon の優先キューにディスパッチする
+        // 'callback' => static function (\Kura\CacheRepository $repository): void {
+        //     dispatch(new \App\Jobs\RebuildReferenceJob($repository->table()))
+        //         ->onQueue('high');
+        // },
         'callback' => null,
 
         // strategy = 'queue' のときに使用
