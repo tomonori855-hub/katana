@@ -14,6 +14,8 @@
 
 CSV や DB からデータを一度読み込み、APCu に保存し、いつもの fluent API でクエリ — **実行時の DB クエリは不要**です。インデックスによる高速化でサブミリ秒のレスポンスを実現します。
 
+Kura は APCu（インプロセスメモリ）をバックエンドとする QueryBuilder 互換 API を提供し、クエリ時に DB へアクセスすることなくリファレンスデータを返します。インデックスを使った高速な絞り込みと、ジェネレーターによるメモリ効率の良い全走査を組み合わせており、各テーブルの ids リストとインデックスデータが APCu の共有メモリ設定内に収まることを前提として動作します。
+
 ## なぜ Kura？
 
 - **馴染みのある API** — `where`, `orderBy`, `paginate`, `find`, `count`, `sum` — Laravel の QueryBuilder と同じ
@@ -361,6 +363,32 @@ Kura は Laravel QueryBuilder の約99メソッドを実装しています。完
 | [概要](docs/overview-ja.md) / [English](docs/overview.md) | クラス構成と責務 |
 | [Laravel Builder カバレッジ](docs/laravel-builder-coverage-ja.md) / [English](docs/laravel-builder-coverage.md) | 完全な API 対応表 |
 | [トラブルシューティング](docs/troubleshooting-ja.md) / [English](docs/troubleshooting.md) | APCu 問題・クエリ遅延・マルチサーバー構成 |
+| [設計制約](docs/design-constraints-ja.md) / [English](docs/design-constraints.md) | 拡張ポイント・固定仕様・QueryBuilder の規約 |
+
+## 設計制約と拡張ポイント
+
+Kura のスコープは意図的に絞られています。中心となる操作は **QueryBuilder 互換のフィルタリング** と **インデックスを使ったルックアップ** の2つです。それ以外は Interface/Closure で差し替え可能か、設計上固定されています。
+
+### 拡張できるもの
+
+| 拡張ポイント | 方法 |
+|---|---|
+| データソース | `LoaderInterface` を実装（`load`, `columns`, `indexes`, `version` の4メソッド） |
+| バージョン解決 | サービスコンテナで `VersionResolverInterface` を bind し直す |
+| Rebuild のディスパッチ | `strategy: callback` に `\Closure(\Kura\CacheRepository): void` を設定 |
+| テーブル単位の TTL | `config/kura.php` の `tables` セクション |
+
+### 設計上の固定仕様
+
+| 仕様 | 理由 |
+|---|---|
+| APCu キー形式 `kura:{table}:{version}:{type}` | Self-Healing とキャッシュ無効化がこの構造に依存している |
+| 全件ロード（差分更新なし） | 一貫性を保証するため。部分的な再構築は非対応 |
+| Self-Healing は常に有効 | `ids` キーの消失で自動トリガー。無効化はできない |
+| インデックス種別: unique / non-unique / composite | Loader が宣言。ランタイムでの追加登録 API はない |
+| join / サブクエリ / raw 系メソッドは対象外 | インメモリのフラットデータに対しては意味をなさないため |
+
+詳細な拡張パターン・メモリモデル・コントリビューション規約は [設計制約](docs/design-constraints-ja.md) を参照してください。
 
 ## 設定
 

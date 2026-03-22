@@ -14,6 +14,8 @@
 
 Load data once from CSV or DB, store it in APCu, and query it with the same fluent API you already know — **no database queries at runtime**. Index-accelerated lookups keep response times sub-millisecond even with large datasets.
 
+Kura provides a QueryBuilder-compatible API backed by APCu (in-process memory), serving reference data entirely without touching the database at query time. Index-based lookups deliver fast filtered queries; generator-based full scans keep per-request memory use low. The design assumes that the ids list and index data for each table fit within APCu's configured shared memory.
+
 ## Why Kura?
 
 - **Familiar API** — `where`, `orderBy`, `paginate`, `find`, `count`, `sum` — same as Laravel's QueryBuilder
@@ -361,6 +363,32 @@ Kura implements ~99 methods from Laravel's QueryBuilder. For the complete list, 
 | [Overview](docs/overview.md) / [日本語](docs/overview-ja.md) | Class structure and responsibilities |
 | [Laravel Builder Coverage](docs/laravel-builder-coverage.md) / [日本語](docs/laravel-builder-coverage-ja.md) | Full API compatibility table |
 | [Troubleshooting](docs/troubleshooting.md) / [日本語](docs/troubleshooting-ja.md) | APCu issues, slow queries, multi-server setup |
+| [Design Constraints](docs/design-constraints.md) / [日本語](docs/design-constraints-ja.md) | Extension points, fixed behaviours, QueryBuilder rules |
+
+## Design Constraints & Extension Points
+
+Kura is intentionally narrow in scope. Two operations are central: **QueryBuilder-compatible filtering** and **index-based lookups**. Everything else is either pluggable via interface/closure or fixed by design.
+
+### What you can extend
+
+| Extension point | How |
+|---|---|
+| Data source | Implement `LoaderInterface` (4 methods: `load`, `columns`, `indexes`, `version`) |
+| Version resolution | Bind `VersionResolverInterface` in the service container |
+| Rebuild dispatch | `strategy: callback` with a `\Closure(\Kura\CacheRepository): void` |
+| Per-table TTL | `tables` key in `config/kura.php` |
+
+### Fixed by design
+
+| Behaviour | Reason |
+|---|---|
+| APCu key format `kura:{table}:{version}:{type}` | Self-healing and invalidation depend on this structure |
+| Full-table load (no partial updates) | Ensures consistency; diff rebuilds are not supported |
+| Self-healing is always active | Triggered automatically on missing `ids` key; cannot be disabled |
+| Index types: unique, non-unique, composite | Declared by the Loader; no runtime registration API |
+| QueryBuilder join / subquery / raw methods excluded | These have no meaning over in-memory flat data |
+
+See [Design Constraints](docs/design-constraints.md) for extension patterns, memory model details, and contribution rules.
 
 ## Configuration
 
