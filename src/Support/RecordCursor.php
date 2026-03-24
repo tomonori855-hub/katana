@@ -55,6 +55,7 @@ class RecordCursor
             return;
         }
 
+        $predicate = WhereCompiler::compile($this->wheres);
         $skipped = 0;
         $yielded = 0;
 
@@ -64,7 +65,7 @@ class RecordCursor
             }
 
             $record = $this->repository->find($pk);
-            if ($record === null || ! WhereEvaluator::evaluate($record, $this->wheres)) {
+            if ($record === null || ! $predicate($record)) {
                 continue;
             }
 
@@ -88,6 +89,7 @@ class RecordCursor
      */
     private function generateSorted(): \Generator
     {
+        $predicate = WhereCompiler::compile($this->wheres);
         $records = [];
 
         foreach ($this->pks as $pk) {
@@ -105,7 +107,7 @@ class RecordCursor
                 continue;
             }
 
-            if (! WhereEvaluator::evaluate($record, $this->wheres)) {
+            if (! $predicate($record)) {
                 continue;
             }
 
@@ -134,6 +136,8 @@ class RecordCursor
             ? $this->limit + ($this->offset ?? 0)
             : null;
 
+        $predicate = WhereCompiler::compile($this->wheres);
+
         if ($reservoirSize === null) {
             // No limit — must collect all, shuffle, then yield
             $records = [];
@@ -152,7 +156,7 @@ class RecordCursor
                     continue;
                 }
 
-                if (! WhereEvaluator::evaluate($record, $this->wheres)) {
+                if (! $predicate($record)) {
                     continue;
                 }
 
@@ -188,7 +192,7 @@ class RecordCursor
                 continue;
             }
 
-            if (! WhereEvaluator::evaluate($record, $this->wheres)) {
+            if (! $predicate($record)) {
                 continue;
             }
 

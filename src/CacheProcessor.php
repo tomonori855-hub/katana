@@ -8,7 +8,7 @@ use Kura\Index\IndexResolver;
 use Kura\Store\ArrayStore;
 use Kura\Store\StoreInterface;
 use Kura\Support\RecordCursor;
-use Kura\Support\WhereEvaluator;
+use Kura\Support\WhereCompiler;
 
 /**
  * Orchestrates query execution over cached data.
@@ -189,6 +189,9 @@ class CacheProcessor
 
         // No sorting: stream records with early exit on limit.
         // Record inconsistency is checked inline — no pre-fetch needed.
+        // Compile where conditions once into a closure to eliminate per-record
+        // match() dispatch and array key lookups.
+        $predicate = WhereCompiler::compile($wheres);
         $skipped = 0;
         $yielded = 0;
 
@@ -211,7 +214,7 @@ class CacheProcessor
                 continue;
             }
 
-            if (! WhereEvaluator::evaluate($record, $wheres)) {
+            if (! $predicate($record)) {
                 continue;
             }
 
@@ -294,6 +297,7 @@ class CacheProcessor
             ? array_fill_keys($candidatePks, true)
             : null;
 
+        $predicate = WhereCompiler::compile($wheres);
         $skipped = 0;
         $yielded = 0;
 
@@ -321,7 +325,7 @@ class CacheProcessor
                     continue;
                 }
 
-                if (! WhereEvaluator::evaluate($record, $wheres)) {
+                if (! $predicate($record)) {
                     continue;
                 }
 
