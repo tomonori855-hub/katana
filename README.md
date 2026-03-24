@@ -521,7 +521,9 @@ Indexes declared: `country`, `price`, `country|category` (composite).
 
 Index-accelerated queries (**bold**) are 3–5× faster than full scans at the same dataset size.
 At 100K records, indexed queries respond in under 21 ms; a non-indexed full scan takes ~52 ms.
+
 `orderBy` on an indexed column uses a pre-sorted index walk — no PHP sort needed.
+`orderBy` on a **non-indexed** column falls back to a PHP-side sort that collects all matching records into memory first (O(N)). For large tables, declare an index on any column you frequently sort by.
 
 > Run `php benchmarks/benchmark.php` in the Docker environment to reproduce.
 
